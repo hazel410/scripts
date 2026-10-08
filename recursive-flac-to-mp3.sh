@@ -1,4 +1,4 @@
-#!/bin/bash'
+#!/bin/bash
 
 # Source - https://stackoverflow.com/a/55762551
 # Posted by Filippos, modified by community. See post 'Timeline' for change history
