@@ -1,7 +1,5 @@
-from os import listdir
-from os import rename
-from os.path import join
-from os.path import isdir
+from os import listdir, rename
+from os.path import join, isdir
 from sys import argv
 
 def rreplace(oldSubstring, newSubstring, path="./"):
