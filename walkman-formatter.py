@@ -1,5 +1,6 @@
 from os import rename, path, system, listdir
 from sys import stdout
+from time import time
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 
@@ -77,50 +78,119 @@ from mutagen.mp3 import MP3
 #   stdout.write(f'\n\rstats.num_renamed: {songsFormattedNum}')
 #   stdout.write(f'\n\rstats.flacs_converted: {flacsConvertedNum}\n')
   
+"""
+formatter workflow:
+  replace disallowed chars in filename:
+    ######
+    if (filename == (track.title).replace(BADCHARS, GOODCHARS)):
+      filename = track.title.replace(BADCHARS, GOODCHARS)
+      rename or wtv
+
+  remove unneccesary tags:
+    ######
+    for song in songs:
+      for tag in song.tags:
+        if tag in BAD_TAGS:
+          tag.explodeEverywhere()
+
+  convert embedded image to 256x256px BASELINE jpg:
+    ######
+    for song in songs:
+      coverArt = song.cover
+      if !isCoverArtFormatted(coverArt):
+        coverArt = formatCoverArt(coverArt)
+
+  convert flacs to 
+    ######
+    for song in songs:
+      if isFLAC(song):
+        convertFLACtoMP3(song)
+"""
+
+
 class walkmanFormatter():
   def __init__(self):
-    self.WALKMAN_DIR = path.expanduser("~/Music/walkman/MUSIC/")
-    self.PLAYLISTS_DIR = path.join(WALKMAN_DIR, "_Playlists")
+    # consts
+    self.WALKMAN_DIR = path.expanduser("~/")
+    self.PLAYLISTS_DIR = path.join(self.WALKMAN_DIR, "_Playlists")
     self.MP3_BITRATE_K = 320
-    self.pairsToRename = []
-    self.pairsToConvert = []
-    self.tagsUsed = []
-  
-  def updatePairsToRename(self):
-    for artist in listdir(self.WALKMAN_DIR):
-      artistDir = path.join(self.WALKMAN_DIR, artist)
+    self.JPEG_PIXELS = 256
+    self.FLAC_EXTENSION = '.flac'
+    self.MP3_EXTENSION = '.mp3'
+    self.BAD_CHARS = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+    self.REPLACEMENT_CHAR = '{}'
+    self.BAD_TAGS = ['LYRICS', 'COMMENT', 'COPYRIGHT', 'LABEL', 'PUBLISHER']
+    self.VERBOSE_ERROR_PREFIX = 'error: '
+    self.VERBOSE_STATUS_PREFIX = 'status: '
+
+    # variables :3
+    self.allSongPaths = []
+    self.artistNumDict = {}
+    self.artistSongsDict = {}
+
+  def updateSongPathList(self):
+    """
+    updates the class variable self.allSongPaths with the full path of 
+    every song in the walkman directory
+    """
+    musicDir = self.WALKMAN_DIR
+    for artist in listdir(musicDir):
+      artistDir = path.join(musicDir, artist)
+      self.artistNumDict[artist] = 0
+      self.artistSongsDict[artist] = []
       for album in listdir(artistDir):
         albumDir = path.join(artistDir, album)
         for song in listdir(albumDir):
-          songExt = song[song.rfind('.'):].lower()
-          songPath = path.join(albumDir, song)
-          
-          if songExt == '.flac':
-            audioFile = FLAC(songPath)
-          elif songExt == '.mp3':
-            audioFile = MP3(songPath)
-          else:
-            raise RuntimeError(f'error: {songPath} is not mp3 or flac')
-          
-          songTitle = (audioFile['title'])[0].replace('/', '\\')
-          songTrackNo = (audioFile['tracknumber'])[0]
-          songNameFormatted = f'{songTrackNo:02} {songTitle}'
-          
-          if (artistDir != self.PLAYLISTS_DIR) and (song != songNameFormatted):
-            self.pairsToRename.append((songPath, songNameFormatted))
-          
-          
-    
-  def updatePairsToConvert():
-    pass
+          songDir = path.join(albumDir, song)
+          self.allSongPaths.append(songDir)
+          self.artistNumDict[artist] = self.artistNumDict[artist] + 1
+          self.artistSongsDict[artist].append(songDir)
+  
+  def getAudioFile(self, songPath):
+    if songPath[-5:].lower() == self.FLAC_EXTENSION:
+      return FLAC(songPath)
+    elif songPath[-4:].lower() == self.MP3_EXTENSION:
+      return MP3(songPath)
+    else:
+      raise RuntimeError(f'{VERBOSE_ERROR_PREFIX}song not {self.FLAC_EXTENSION} or {self.MP3_EXTENSION}')
 
-  def main():
-    updatePairsToRename()
-    # executePairsToRename()
+  def convertFLACtoMP3(self, flacPath):
+    system(f'ffmpeg -i "{flacPath}" -v error -ab {self.MP3_BITRATE_K}k -map_metadata 0 -id3v2_version 3 "{flacPath[:-5]}{self.MP3_EXTENSION}"')
+    system(f'rm "{flacPath}"')
+  
+  def convertDirToMP3(self, dir):
+    for song in listdir(dir):
+      if song[-5:] == self.FLAC_EXTENSION:
+        self.convertFLACtoMP3(path.join(dir, song))
 
-    updateUsedTags()
+  # def formatBadSongNames():
+  #   """
+  #   checks if each song in self.allSongPaths is properly formatted,
+  #   i.e. the filename of the song is the title tag of the song with
+  #   disallowed characters replaced
+  #   """
+  #   for songPath in self.allSongPaths:
+  #     audioFile = getAudioFile(songPath)
+  #     fileName = path.basename(songPath)
+  #     if fileName = 
+  
 
-    # updatePairsToConvert()
-    # executePairsToConvert()
-            
+        
 
+
+
+
+# flac = FLAC('/home/hazel/Music/spotiflac/Adrianne Lenker/songs/anything.flac')   
+# print(flac.tags)
+
+# thing = walkmanFormatter()
+# thing.updateSongPathList()
+# for artist in thing.artistNumDict.keys():
+#   numSongs = thing.artistNumDict[artist]
+#   songPaths = thing.artistSongsDict[artist]
+#   if numSongs < 10:
+#     for path in songPaths:
+#       print(path)
+
+thing = walkmanFormatter()
+thing.convertDirToMP3('/home/hazel/Music/walkman/MUSIC/Utsu-P/HAPPYPILLS')
